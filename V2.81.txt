@@ -1,0 +1,830 @@
+import SwiftUI
+
+struct AccountListSheetView: View {
+    @ObservedObject var salesData: SalesData
+    let selectedCategory: String
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.black // Set the background color to black
+                
+                if salesData.sales.isEmpty {
+                    VStack {
+                        Text("No Sales Data Available")
+                            .font(.headline)
+                            .foregroundColor(Color.white)
+                        
+                        Text("Please Add A Sale In 'Add Sales' Tab")
+                            .font(.footnote)
+                            .foregroundColor(Color.white)
+                    }
+                } else {
+                    ScrollView {
+                        ForEach(salesData.sales.filter { $0.categories.contains(selectedCategory) }, id: \.accountNumber) { sale in
+                            NavigationLink(destination: SaleDetailViewCom(sale: sale)) {
+                                VStack(alignment: .center) {
+                                    VStack {
+                                        //Rectangle()
+                                        // .fill(Color.black) // Black background
+                                        //        .frame(height: 20) // Black background height
+                                    //    .padding(.top,25)
+                                        Text(sale.accountNumber)
+                                            .font(.headline)
+                                            .foregroundColor(Color.white)
+                                            .frame(width: 300)
+                                            .padding(.top, 25) // Add padding above the account number
+                                            .frame(width:325)
+                                    }
+                                    VStack{
+                                        Text("Categories:")
+                                            .font(.caption)
+                                            .foregroundColor(Color.white) // White tex
+                                            .frame(width:250)
+                                        Text(sale.categories.joined(separator: ", "))
+                                            .font(.caption)
+                                            .foregroundColor(Color.white) // White text
+                                            .frame(width:250)
+                                        Text("Notes:")
+                                            .font(.caption)
+                                            .foregroundColor(Color.white) // White text
+                                        Text(sale.notes)
+                                            .font(.caption)
+                                            .foregroundColor(Color.white) // White text
+                                            .frame(width:250)
+                                    }
+                                    .padding()
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(12)
+                                    .padding(.bottom,25)
+                                        .frame(width: 275)
+                                }
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
+                                .frame(width:350)
+                             //   .padding(25)
+                            }
+                        }
+                        
+                    }
+                }
+            }
+            .navigationBarTitle(selectedCategory, displayMode: .inline)
+            .preferredColorScheme(.dark)
+            .background(Color.black) // Set the background color of the NavigationView to black
+        }
+    }
+}
+import SwiftUI 
+
+struct BlackTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding()
+            .background(Color.black.opacity(0.6)) // Set background color to black
+            .foregroundColor(.white) // Set text color to white
+            .cornerRadius(12)
+    }
+}
+struct AddSalesView: View {
+    @ObservedObject var salesData: SalesData
+    @State private var accountNumber = ""
+    @State private var notes = ""
+    @State private var selectedCategories: [String] = []
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background Image
+                Image("Background")
+                    .resizable()
+                    .scaledToFill()
+                    .edgesIgnoringSafeArea(.all)
+                    .opacity(1)
+                
+                GeometryReader { geometry in
+                    ScrollView {
+                        VStack {
+                            VStack {
+                                Text("Select Sale:")
+                                    .foregroundColor(.white) // Set text color to white
+                                ForEach(["Billable HRA", "Flex HRA", "Transfer/Schedule", "Select RX & MMP"], id: \.self) { category in
+                                    Button(action: {
+                                        if selectedCategories.contains(category) {
+                                            selectedCategories.removeAll { $0 == category }
+                                        } else {
+                                            selectedCategories.append(category)
+                                        }
+                                    }) {
+                                        HStack {
+                                            Text(category)
+                                                .foregroundColor(.white) // Set text color to white
+                                            Spacer()
+                                            Image(systemName: selectedCategories.contains(category) ? "checkmark.square.fill" : "square")
+                                        }
+                                        .padding()
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color.black.opacity(0.5)) // Set background color to black
+                                        )
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: 300)
+                            .padding(.horizontal, 20)
+                            
+                            VStack {
+                                TextField("Account Number", text: $accountNumber)
+                                    .textFieldStyle(BlackTextFieldStyle()) // Apply custom style
+                                    .keyboardType(.numberPad)
+                                
+                                TextField("Notes", text: $notes)
+                                    .textFieldStyle(BlackTextFieldStyle()) // Apply custom style
+                                    .keyboardType(.default)
+                            }
+                            .frame(maxWidth: 300)
+                            .padding(.horizontal, 20)
+                            
+                            Button(action: {
+                                if accountNumber.isEmpty {
+                                    showAlert(message: "Account Number is required.")
+                                } else if salesData.sales.contains(where: { $0.accountNumber == accountNumber }) {
+                                    showAlert(message: "Account Number already exists. Please enter a different one.")
+                                } else {
+                                    let sale = SalesData.Sale(categories: selectedCategories, accountNumber: accountNumber, notes: notes, timestamp: Date())
+                                    salesData.sales.append(sale)
+                                    
+                                    // Clear input fields after adding a sale
+                                    accountNumber = ""
+                                    notes = ""
+                                    selectedCategories = []
+                                    
+                                    // Save the updated data to app storage (UserDefaults)
+                                    salesData.saveData()
+                                }
+                            }) {
+                                Text("Add Sale")
+                                    .padding()
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color.blue)
+                                    )
+                                    .foregroundColor(.white) // Set text color to white
+                            }
+                            .padding()
+                        }
+                        .listStyle(GroupedListStyle())
+                        .frame(width: 350, height: 600)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.1)) // Set background color to black
+                        )
+                        .foregroundColor(.white) // Set text color to white
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                }
+            }
+            .navigationBarTitle("Add Sales", displayMode: .inline)
+            .preferredColorScheme(.dark)
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("Validation Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            }
+        }
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+        .preferredColorScheme(.dark) // Set the preferred color scheme to dark mode for the entire view
+    }
+    
+    private func showAlert(message: String) {
+        alertMessage = message
+        showAlert = true
+    }
+}
+
+
+// CommissionData.swift
+
+import SwiftUI
+
+
+struct CommissionData {
+    static let commissionStructures: [CommissionStructure] = [
+        CommissionStructure(category: "Billable HRA", rates: [(0, 14, 2.5), (15, 39, 3.0), (40, 59, 3.5), (60, Int.max, 4.0)]),
+        CommissionStructure(category: "Transfer/Schedule", rates: [(0, 9, 7.0), (10, 24, 8.0), (25, 32, 9.0), (33, Int.max, 10.0)]),
+        CommissionStructure(category: "Select RX & MMP", rates: [(0, 9, 15.0), (10, 24, 16.0), (25, 89, 17.0), (90, 129, 18.0), (130, Int.max, 19.0)])
+    ]
+}
+// CommissionStructure.swift
+
+import SwiftUI
+// CommissionStructure.swift
+
+
+struct CommissionStructure {
+    let category: String
+    let rates: [(lowerBound: Int, upperBound: Int, rate: Double)]
+}
+import SwiftUI
+
+struct CommissionView: View {
+    @ObservedObject var salesData: SalesData
+    @State private var selectedCategory: String?
+    @State private var isShowingAccountList = false
+    
+    // Create an array of sorted categories
+    private var sortedCategories: [String] {
+        return salesData.categories.sorted()
+    }
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background Image
+                Image("Background")
+                    .resizable()
+                    .scaledToFill()
+                    .edgesIgnoringSafeArea(.all)
+                    .opacity(0.6)
+                
+                if salesData.sales.isEmpty {
+                    // Show a message when there are no sales data
+                    VStack {
+                        Text("No Sales Data Available")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("Please Add A Sale In 'Add Sales' Tab")
+                            .font(.footnote)
+                            .foregroundColor(.gray)
+                    }
+                } else {
+                    ScrollView {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 25)
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 350, height: .infinity)
+                            
+                            VStack(spacing: 16) {
+                                ForEach(sortedCategories, id: \.self) { category in
+                                    Section(header:
+                                                Text(category)
+                                        .font(.title3)
+                                        .foregroundColor(.white)
+                                        .padding(EdgeInsets(top: 10, leading: 20, bottom: 5, trailing: 20)) // Adjust the padding here
+                                    ) {
+                                        let totalSalesCount = totalSales(for: category)
+                                        let totalCommission = calculateTotalCommission(for: category, salesCount: totalSalesCount)
+                                        
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color.black.opacity(0.6))
+                                                .frame(width: 300, height: 50)
+                                                .onTapGesture {
+                                                    selectedCategory = category
+                                                    isShowingAccountList.toggle()
+                                                }
+                                            
+                                            HStack {
+                                                Spacer()
+                                                HStack(alignment: .center, spacing: 5) {
+                                                    Text("Points:")
+                                                        .font(.headline)
+                                                    Text("\(totalSalesCount) : ")
+                                                    HStack {
+                                                        Text("Compensation")
+                                                            .font(.headline)
+                                                        Text("$\(totalCommission, specifier: "%.2f")")
+                                                    }
+                                                }
+                                                Spacer()
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Calculate and display the total compensation
+                                let totalCompensation = calculateTotalCompensation()
+                                ZStack {
+                                    Spacer()
+                                    VStack(alignment: .center, spacing: 5) {
+                                        Text("Total Compensation")
+                                            .font(.headline)
+                                        Text("$\(totalCompensation, specifier: "%.2f")")
+                                    }
+                                    Spacer()
+                                        
+                                }
+                                .padding()
+                                .background(Color.black.opacity(0.6))
+                                .cornerRadius(12)
+                                .padding([.leading, .trailing], 12)
+                                .padding(12)
+                            }
+                            .padding(25)
+                        }
+                    }
+                    .listStyle(GroupedListStyle())
+                }
+            }
+            .navigationBarTitle("Commissions", displayMode: .inline)
+            .preferredColorScheme(.dark)
+            
+            // Sheet to display account numbers associated with the selected category
+            .sheet(isPresented: $isShowingAccountList) {
+                if let selectedCategory = selectedCategory {
+                  //  loadSalesData()
+                    AccountListSheetView(salesData: salesData, selectedCategory: selectedCategory)
+                
+            }
+            }
+        }
+    }
+    
+    private func totalSales(for category: String) -> Int {
+        return salesData.sales.filter { $0.categories.contains(category) }.count
+    }
+    
+    private func calculateTotalCommission(for category: String, salesCount: Int) -> Double {
+        if let commissionStructure = CommissionData.commissionStructures.first(where: { $0.category == category }) {
+            for (lowerBound, upperBound, rate) in commissionStructure.rates {
+                if salesCount >= lowerBound && salesCount <= upperBound {
+                    return Double(salesCount) * rate
+                }
+            }
+        }
+        return 0.0
+    }
+    
+    private func calculateTotalCompensation() -> Double {
+        // Calculate the total compensation by summing up commissions for all categories
+        var totalCompensation = 0.0
+        for category in salesData.categories {
+            let totalSalesCount = totalSales(for: category)
+            let totalCommission = calculateTotalCommission(for: category, salesCount: totalSalesCount)
+            totalCompensation += totalCommission
+        }
+        return totalCompensation
+    }
+}
+import SwiftUI
+
+struct ContentView: View {
+    @ObservedObject var salesData: SalesData // Make sure you have an instance of SalesData to pass
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Image("Background")
+                    .resizable()
+                    .scaledToFill()
+                    .edgesIgnoringSafeArea(.all)
+                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                
+                VStack {
+                    VStack {
+                        Text("Population Health")
+                            .font(.largeTitle)
+                            .bold()
+                            .foregroundColor(Color.white)
+                        
+                        Text("Sales Tracker")
+                            .font(.title)
+                            .foregroundColor(Color.white)
+                    }
+                    .padding()
+                    
+                    NavigationLink(destination: AddSalesView(salesData: salesData)) {
+                        Image("V3-1")
+                            .renderingMode(.original)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 200, height: 100)
+                            .clipShape(Capsule())
+                    }
+                    .padding()
+                    
+                    NavigationLink(destination: ViewSalesView(salesData: salesData)) {
+                        Image("V3")
+                            .renderingMode(.original)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 200, height: 100)
+                            .clipShape(Capsule())
+                    }
+                    .padding()
+                    
+                    NavigationLink(destination: CommissionView(salesData: salesData)) {
+                        Image("V3-2")
+                            .renderingMode(.original)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 200, height: 100)
+                            .clipShape(Capsule())
+                    }
+                    .padding(.top)
+                    
+                    Text("")
+                        .font(.footnote)
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                    
+                   // Text("Designed and Developed by Micah Simmons")
+                        .font(.footnote)
+                        .foregroundColor(.white)
+                    
+                  //  Text("Employee of Population Health - CSA")
+                        .font(.footnote)
+                        .foregroundColor(.white)
+                }
+            }
+            .onAppear {
+                // Load data here when the view appears
+                salesData.loadData()
+            }
+        }
+    }
+}
+import SwiftUI
+
+@main
+struct MyApp: App {
+    @AppStorage("salesData") var savedSalesData: Data = Data()
+
+    // Create an instance of SalesData
+    let salesData = SalesData()
+    
+    var body: some Scene {
+        WindowGroup {
+            // Pass the salesData instance to your ViewSalesView
+            ContentView(salesData: salesData)
+        }
+    }
+}
+import SwiftUI
+
+struct SaleDetailView: View {
+    var sale: SalesData.Sale?
+    
+    var body: some View {
+        VStack {
+            VStack(alignment: .leading, spacing: 10) {
+                if let sale = sale {
+                    Text("Account Number")
+                        .font(.title)
+                        .foregroundColor(.white)
+                    
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 200, height: 50)
+                        .overlay(
+                            Text(sale.accountNumber)
+                                .font(.title3)
+                                .foregroundColor(.white)
+                                .fontWeight(.bold)
+                        )
+                    
+                    Text("Notes:")
+                        .font(.title)
+                        .foregroundColor(.white)
+                    
+                    Text(sale.notes)
+                        .font(.subheadline)
+                        .padding(10)
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                        .frame(width: 200)
+                        .padding(5)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.1)))
+                    
+                    Text("Sales Categories")
+                        .font(.title)
+                        .foregroundColor(.white)
+                    
+                    ForEach(sale.categories, id: \.self) { category in
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 200, height: 50)
+                            .overlay(
+                                Text(category)
+                                    .font(.subheadline)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            )
+                    }
+                    
+                    Text("Date")
+                        .font(.title)
+                        .foregroundColor(.white)
+                    
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 200, height: 50)
+                        .overlay(
+                            Text(formatDate(sale.timestamp))
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .fontWeight(.bold)
+                        )
+                } else {
+                    Text("No Sales")
+                        .font(.title)
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(20)
+            .foregroundColor(.white)
+            .preferredColorScheme(.dark)
+        }
+        .padding()
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+import SwiftUI
+
+struct SaleDetailViewCom: View {
+    var sale: SalesData.Sale?
+    
+    var body: some View {
+        ScrollView {
+            ZStack {
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 350, height: .infinity)
+                    //.padding()
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    if let sale = sale {
+                        Text("Account Number")
+                            .font(.title)
+                            .foregroundColor(.white)
+                        
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 200, height: 50)
+                            .overlay(
+                                Text(sale.accountNumber)
+                                    .font(.title3)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            )
+                        
+                        Text("Notes:")
+                            .font(.title)
+                            .foregroundColor(.white)
+                        
+                        Text(sale.notes)
+                            .font(.subheadline)
+                            .padding(10)
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                            .frame(width: 200)
+                            .padding(5)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.6))
+                                .alignmentGuide(.leading) { d in d[.leading] }
+                            )
+                        
+                        Text("Sales Categories")
+                            .font(.title)
+                            .foregroundColor(.white)
+                        
+                        ForEach(sale.categories, id: \.self) { category in
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.black.opacity(0.6))
+                                .frame(width: 200, height: 50)
+                                .overlay(
+                                    Text(category)
+                                        .font(.subheadline)
+                                        .foregroundColor(.white)
+                                        .fontWeight(.bold)
+                                )
+                        }
+                        
+                        Text("Date")
+                            .font(.title)
+                            .foregroundColor(.white)
+                        
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 200, height: 50)
+                            .overlay(
+                                Text(formatDate(sale.timestamp))
+                                    .font(.subheadline)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            )
+                    } 
+                        
+                    else {
+                        Text("No Sales")
+                            .font(.title)
+                            .foregroundColor(.white)
+                    }
+                    
+                }
+                .padding(20)
+                .foregroundColor(.white)
+                .preferredColorScheme(.dark)
+              //  .background(Color.black)
+            }
+            
+          //  .padding(25)
+        }
+      //  .padding(2)
+        .frame(width: 1500
+               , height: .infinity, alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/)
+        .background(Color.black)
+    }
+        
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+import SwiftUI
+
+class SalesData: ObservableObject {
+    struct Sale: Identifiable, Codable {
+        var id = UUID()
+        var categories: [String]
+        var accountNumber: String
+        var notes: String
+        var timestamp: Date
+    }
+    
+    @Published var sales: [Sale] = []
+    
+    // Function to save data to UserDefaults
+    func saveData() {
+        if let encodedData = try? JSONEncoder().encode(sales) {
+            UserDefaults.standard.set(encodedData, forKey: "salesData")
+        }
+    }
+    
+    // Function to load data from UserDefaults
+    func loadData() {
+        if let encodedData = UserDefaults.standard.data(forKey: "salesData"),
+           let decodedData = try? JSONDecoder().decode([Sale].self, from: encodedData) {
+            self.sales = decodedData
+        }
+    }
+    
+    var categories: [String] {
+        // Extract unique categories from sales data
+        return Array(Set(sales.flatMap { $0.categories }))
+    }
+    
+    // Add a new sale to the sales array
+    func addSale(newSale: Sale) {
+        sales.append(newSale)
+        saveData()
+    }
+    
+    // Remove a sale from the sales array
+    func removeSale(at index: Int) {
+        sales.remove(at: index)
+        saveData()
+    }
+}
+import SwiftUI
+
+struct ViewSalesView: View {
+    @ObservedObject var salesData: SalesData
+    @State private var selectedAccount: String?
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background Image
+                Image("Background")
+                    .resizable()
+                    .scaledToFill()
+                    .edgesIgnoringSafeArea(.all)
+                    .opacity(1)
+                
+                if salesData.sales.isEmpty {
+                    // Show a message when there are no sales data
+                    VStack {
+                        Text("No Sales Data Available")
+                            .font(.headline)
+                            .foregroundColor(Color.white) // Set text color to black
+                        
+                        Text("Please Add A Sale In 'Add Sales' Tab")
+                            .font(.footnote)
+                            .foregroundColor(Color.white) // Set text color to gray
+                    }
+                } else {
+                    GeometryReader { geometry in
+                        ScrollView {
+                            VStack {
+                                ForEach(salesData.sales, id: \.accountNumber) { sale in
+                                    if selectedAccount == sale.accountNumber {
+                                        VStack {
+                                            SaleDetailView(sale: sale)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.black.opacity(0.6)) // Set background color to black with 0 opacity
+                                                )
+                                                .cornerRadius(25)
+                                                .padding(.top, 12)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 12)
+                                            
+                                            Button(action: {
+                                                // Delete the sale when the button is tapped
+                                                if let index = salesData.sales.firstIndex(where: { $0.accountNumber == sale.accountNumber }) {
+                                                    salesData.sales.remove(at: index)
+                                                    selectedAccount = nil // Deselect the account after deletion
+                                                    
+                                                    // Save the updated data to app storage (UserDefaults)
+                                                    salesData.saveData()
+                                                }
+                                            }) {
+                                                Text("Delete")
+                                                    .foregroundColor(.white)
+                                                    .padding()
+                                                    .background(Color.red)
+                                                    .cornerRadius(12)
+                                                    .padding(.bottom, 10)
+                                            }
+                                        }
+                                        .onTapGesture {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                // Set the selected account to nil when tapped to hide details
+                                                selectedAccount = nil
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                    } else {
+                                        VStack{
+                                            Text("Account Number ")
+                                            Text( sale.accountNumber)
+                                            Text("Categories:")
+                                                .font(.caption)
+                                                .foregroundColor(Color.white) // White text
+                                            Text(sale.categories.joined(separator: ", "))
+                                                .font(.caption)
+                                                .foregroundColor(Color.white) // White text
+                                            
+                                            Text("Notes:")
+                                                .font(.caption)
+                                                .foregroundColor(Color.white) // White text
+                                            Text(sale.notes)
+                                                .font(.caption)
+                                                .foregroundColor(Color.white) // White text
+                                        }
+                                            //.padding()
+                                            //.background(Color.white.opacity(0.1))
+                                            //.cornerRadius(25)
+                                                .onTapGesture {
+                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                        selectedAccount = sale.accountNumber
+                                                    }
+                                                    // Set the selected account when tapped to show details
+                                                }
+                                        
+                                            .padding()
+                                            .foregroundColor(.white)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(Color.black.opacity(0.6)) // Set background color to black with 0.6 opacity
+                                            )
+                                            .frame(maxWidth: 250, alignment: .center)
+                                            .cornerRadius(10)
+                                            .padding(.horizontal, 20)
+                                            .padding(.vertical,1)
+                                            .padding(.top, 10)
+                                            .padding(.bottom, 10)
+                                            .frame(maxWidth: 325, maxHeight: .infinity, alignment: .center)
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: 350)
+                            .background(
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Color.white.opacity(0.1)) // Set background color to black with 0.6 opacity
+                            )
+                            .cornerRadius(25)
+                            .padding(25)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    }
+                }
+            }
+            .navigationBarTitle("View Sales", displayMode: .inline)
+            .preferredColorScheme(.dark)
+        }
+    }
+}
